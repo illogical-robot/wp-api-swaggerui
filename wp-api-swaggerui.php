@@ -21,16 +21,31 @@ if (version_compare(PHP_VERSION, '5.4', '<') || version_compare($wp_version, '4.
     return;
 }
 
-require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerbag.php';
-require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerauth.php';
-require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggertemplate.php';
-
 if (is_admin()) {
     require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggersetting.php';
 }
 
 class WP_API_SwaggerUI
 {
+    public function __construct()
+    {
+        register_activation_hook(__FILE__, [$this, 'flushActivate']);
+        register_deactivation_hook(__FILE__, [$this, 'flushDeactivate']);
+
+        \add_action('init', [$this, 'init']);
+    }
+
+    public function init()
+    {
+        $this->routes();
+        if (apply_filters('swagger_ui_enabled', true)) {
+            require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerbag.php';
+            require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerauth.php';
+            require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggertemplate.php';
+
+            add_action('wp', [$this, 'swagger']);
+        }
+    }
 
     public function routes()
     {
@@ -81,6 +96,7 @@ class WP_API_SwaggerUI
             'securityDefinitions' => $this->securityDefinitions()
         );
 
+        $response = apply_filters('swagger_api_response', $response);
         wp_send_json($response);
     }
 
@@ -185,6 +201,9 @@ class WP_API_SwaggerUI
 
         foreach ($args as $arg) {
 
+            if (apply_filters('swagger_api_skip_method', false, $endpoint, $arg)) {
+                continue;
+            }
             $all_parameters = $this->getParametersFromArgs(
                 $ep,
                 isset($arg['args']) ? $arg['args'] : [],
@@ -192,6 +211,7 @@ class WP_API_SwaggerUI
             );
 
             foreach ($arg['methods'] as $method => $bool) {
+                
                 $mtd = mb_strtolower($method);
                 $methodEndpoint = $mtd . str_replace('/', '_', $ep);
                 $parameters = isset($all_parameters[$mtd]) ? $all_parameters[$mtd] : [];
@@ -228,6 +248,12 @@ class WP_API_SwaggerUI
                     $tags = $args['tags'];
                 }
 
+                if (isset($arg['responses']) && is_array($arg['responses'])) {
+                    $responses = $arg['responses'];
+                } else {
+                    $responses = $this->getResponses($methodEndpoint);
+                }
+
                 $conf = array(
                     'tags' => $tags,
                     'summary' => isset($arg['summary']) ? $arg['summary'] : '',
@@ -235,8 +261,8 @@ class WP_API_SwaggerUI
                     'consumes' => $consumes,
                     'produces' => $produces,
                     'parameters' => $parameters,
-                    'security' => $this->getSecurity(),
-                    'responses' => $this->getResponses($methodEndpoint)
+                    'security' => $this->getSecurity($methodEndpoint, $arg),
+                    'responses' => $responses
                 );
 
                 $methods[$mtd] = $conf;
@@ -375,12 +401,15 @@ class WP_API_SwaggerUI
         return $parameters;
     }
 
-    public function getSecurity()
+    public function getSecurity( $methodEndpoint, $args )
     {
+
         $raw = $this->securityDefinitions();
         if (!is_array($raw)) {
             $raw = [];
         }
+        $raw = apply_filters('swagger_method_raw_security', $raw, $args);
+        $raw = apply_filters('swagger_method_raw_security_' . $methodEndpoint, $raw, $args);
 
         $securities = [];
         foreach ($raw as $key => $name) {
@@ -426,9 +455,4 @@ class WP_API_SwaggerUI
 
 }
 
-$swagerui = new WP_API_SwaggerUI();
-
-register_activation_hook(__FILE__, [$swagerui, 'flushActivate']);
-register_deactivation_hook(__FILE__, [$swagerui, 'flushDeactivate']);
-add_action('init', [$swagerui, 'routes']);
-add_action('wp', [$swagerui, 'swagger']);
+new WP_API_SwaggerUI();
