@@ -13,4 +13,12 @@ SwaggerUIBundle({
     ],
     layout: "StandaloneLayout",
     validatorUrl: "https://validator.swagger.io/validator",
+    requestInterceptor:
+        (request) => {
+            let auth = request.headers.Authorization || request.headers.authorization || '';
+            if (auth.toLowerCase().includes('basic')) {
+                request.credentials = 'omit'
+            }
+            return request;
+        },
 });
