@@ -10,7 +10,7 @@
  * @wordpress-plugin
  * Plugin Name: WP API SwaggerUI
  * Description: WordPress REST API with Swagger UI.
- * Version:     1.1.2.2
+ * Version:     1.1.2.3
  * Author:      Agus Suroyo, APKMirror.com
  * License:     GPL v2 or later
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
@@ -324,9 +324,7 @@ class WP_API_SwaggerUI
 
         if (empty($type)) {
 
-            if (strpos($param, '_id') !== false) {
-                $type = 'integer';
-            } elseif (strtolower($param) === 'id') {
+            if (strpos($param, '_id') !== false || strtolower($param) === 'id' || $type === 'integer') {
                 $type = 'integer';
             } else {
                 $type = 'string';
@@ -347,6 +345,10 @@ class WP_API_SwaggerUI
             'required' => $required,
             'type' => $type
         );
+
+        if (isset($detail['default']) && !empty($detail['default'])) {
+            $params['default'] = $detail['default'];
+        }
 
         if (isset($detail['items'])) {
             $params['items'] = array(
@@ -394,7 +396,8 @@ class WP_API_SwaggerUI
                     $parameters[$mtd] = [];
                 }
 
-                $parameters[$mtd][] = $this->buildParams($param, $mtd, $endpoint, ['type' => 'string'] + $detail);
+                $detail['type'] =  $detail['type'] ?: 'string';
+                $parameters[$mtd][] = $this->buildParams($param, $mtd, $endpoint, $detail);
             }
         }
 
