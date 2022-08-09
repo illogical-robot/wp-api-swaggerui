@@ -262,6 +262,7 @@ class WP_API_SwaggerUI
                     'produces' => $produces,
                     'parameters' => $parameters,
                     'security' => $this->getSecurity($methodEndpoint, $arg),
+
                     'responses' => $responses
                 );
 
@@ -298,6 +299,10 @@ class WP_API_SwaggerUI
 
     public function detectIn($param, $mtd, $endpoint, $detail)
     {
+        if (isset($detail['in'])) {
+            return $detail['in'];
+        }
+
         switch ($mtd) {
             case strpos($endpoint, '{' . $param . '}') !== false:
                 $in = 'path';
@@ -313,11 +318,23 @@ class WP_API_SwaggerUI
         return $in;
     }
 
+    public function parseTypeObjectToString($types)
+    {
+        if (is_array($types)) {
+            foreach ($types as $type) {
+                return $this->parseTypeObjectToString($type);
+            }
+        }
+        return $types === 'object' ? 'string' : $types;
+    }
+
     public function buildParams($param, $mtd, $endpoint, $detail)
     {
-
-        $type = $detail['type'] === 'object' ? 'string' : $detail['type'];
-
+        /**
+         * When the type is object, SwaggerUI by default add empty `{}` to parameter value
+         * It's annoying so need to convert to just `string`
+         */
+        $type = $this->parseTypeObjectToString($detail['type']);
         if (is_array($type) && isset($type[0])) {
             $type = $type[0];
         }
@@ -352,7 +369,7 @@ class WP_API_SwaggerUI
 
         if (isset($detail['items'])) {
             $params['items'] = array(
-                'type' => $detail['items']['type']
+                'type' => isset($detail['items']['type']) ? $detail['items']['type'] : 'string'
             );
         } elseif (isset($detail['enum'])) {
             $params['type'] = 'array';
@@ -381,6 +398,10 @@ class WP_API_SwaggerUI
             $params['format'] = 'int64';
         }
 
+        if (isset($detail['schema'])) {
+            $params['schema'] = $detail['schema'];
+        }
+
         return $params;
     }
 
@@ -396,8 +417,10 @@ class WP_API_SwaggerUI
                     $parameters[$mtd] = [];
                 }
 
+
                 $detail['type'] =  $detail['type'] ?: 'string';
                 $parameters[$mtd][] = $this->buildParams($param, $mtd, $endpoint, $detail);
+
             }
         }
 
