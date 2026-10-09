@@ -14,6 +14,12 @@ SwaggerUIBundle({
     layout: "StandaloneLayout",
     validatorUrl: "https://validator.swagger.io/validator",
     requestInterceptor: (req) => {
+        // APKMirror: with Basic auth (application passwords), don't also send the login cookie. WordPress
+        // would authenticate the cookie instead and reject the request for lacking a REST nonce.
+        const auth = req.headers.Authorization || req.headers.authorization || '';
+        if (auth.toLowerCase().includes('basic')) {
+            req.credentials = 'omit';
+        }
         // Plain permalinks have no /wp-json route, so rewrite REST calls to
         // the ?rest_route= form. Swagger UI drops the query from the server
         // URL and prepends only its path (cfg.strip), which we strip back off
