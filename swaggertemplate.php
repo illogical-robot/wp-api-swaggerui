@@ -18,9 +18,6 @@ class SwaggerTemplate
             // admin bar tools (e.g. Query Monitor) need them. Without the bar
             // (public docs) strip everything so no front-end plugin CSS bleeds in.
             $keep_plugin_assets = is_admin_bar_showing();
-            // APKMirror: let a site strip plugin assets even with the admin bar showing, when it doesn't need
-            // admin bar tools on the docs page and other plugins' front-end scripts would break there.
-            $keep_plugin_assets = apply_filters('swagger_ui_keep_plugin_assets', $keep_plugin_assets);
 
             // Strip theme/front-end styles that clash with Swagger UI, but keep
             // admin bar essentials and plugin assets. Dequeue only (no

@@ -14,10 +14,10 @@ SwaggerUIBundle({
     layout: "StandaloneLayout",
     validatorUrl: "https://validator.swagger.io/validator",
     requestInterceptor: (req) => {
-        // APKMirror: with Basic auth (application passwords), don't also send the login cookie. WordPress
-        // would authenticate the cookie instead and reject the request for lacking a REST nonce.
-        const auth = req.headers.Authorization || req.headers.authorization || '';
-        if (auth.toLowerCase().includes('basic')) {
+        // Credentials from the Authorize dialog travel in the Authorization header. Don't also send the
+        // login cookie: WordPress would authenticate the cookie instead and, with no REST nonce, treat
+        // the request as logged out.
+        if (req.headers.Authorization || req.headers.authorization) {
             req.credentials = 'omit';
         }
         // Plain permalinks have no /wp-json route, so rewrite REST calls to

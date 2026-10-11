@@ -41,11 +41,10 @@ This plugin can be installed directly from your site.
 
 == Changelog ==
 
-= 2.4.0.1 (APKMirror fork) =
+= 2.4.0.2 (APKMirror fork) =
 * Based on 2.4.0.
-* Load the auth handler, the docs template, and the schema output only when the `swagger_ui_enabled` filter returns true.
-* New filters: `swagger_api_skip_method` (hide an operation), `swagger_method_raw_security` and `swagger_method_raw_security_{method_endpoint}` (per-operation security), `swagger_api_response` (the whole schema before formatting), and `swagger_ui_keep_plugin_assets` (strip other plugins' assets from the docs page even with the admin bar showing).
-* Try it out: don't send the login cookie with Basic auth requests, so WordPress authenticates the application password instead of the cookie.
+* An operation's `security` can be set in its route args, like `responses` and `tags` (an empty array removes the lock icon).
+* Try it out: don't send the login cookie with requests that carry an Authorization header, so WordPress authenticates the Authorize dialog's credentials instead of the cookie.
 
 = 2.4.0 =
 * Serve the docs and schema on all permalink types via `?swagger_api=docs` / `?swagger_api=schema`, not only pretty permalinks

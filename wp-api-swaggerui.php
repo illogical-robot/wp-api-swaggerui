@@ -10,7 +10,7 @@
  * @wordpress-plugin
  * Plugin Name: WP API SwaggerUI
  * Description: WordPress REST API with Swagger UI.
- * Version:     2.4.0.1
+ * Version:     2.4.0.2
  * Author:      Agus Suroyo, APKMirror.com
  * Requires PHP: 7.4
  * License:     GPL v2 or later
@@ -23,6 +23,8 @@ if (version_compare(PHP_VERSION, '7.4', '<') || version_compare($wp_version, '4.
 }
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerbag.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerauth.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggertemplate.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggeropenapi.php';
 
 if (is_admin()) {
@@ -31,28 +33,6 @@ if (is_admin()) {
 
 class WP_API_SwaggerUI
 {
-    public function __construct()
-    {
-        register_activation_hook(__FILE__, [$this, 'flushActivate']);
-        register_deactivation_hook(__FILE__, [$this, 'flushDeactivate']);
-
-        add_action('init', [$this, 'init']);
-    }
-
-    /**
-     * Registers the docs and schema routes, and loads the Swagger UI, its auth handler, and the schema output only
-     * when the swagger_ui_enabled filter allows it (APKMirror: only for users who may view the API docs).
-     */
-    public function init()
-    {
-        $this->routes();
-        if (apply_filters('swagger_ui_enabled', true)) {
-            require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggerauth.php';
-            require_once __DIR__ . DIRECTORY_SEPARATOR . 'swaggertemplate.php';
-
-            add_action('wp', [$this, 'swagger']);
-        }
-    }
 
     public function routes()
     {
@@ -120,8 +100,6 @@ class WP_API_SwaggerUI
         if (is_array($securityDefinitions) && !empty($securityDefinitions)) {
             $response['securityDefinitions'] = $securityDefinitions;
         }
-
-        $response = apply_filters('swagger_api_response', $response);
 
         $formatter = SwaggerSpecRegistry::forVersion(get_option('swagger_api_spec_version', '2.0'));
         $output    = $formatter->format($response);
@@ -271,10 +249,6 @@ class WP_API_SwaggerUI
 
         foreach ($args as $arg) {
 
-            if (apply_filters('swagger_api_skip_method', false, $endpoint, $arg)) {
-                continue;
-            }
-
             $all_parameters = $this->getParametersFromArgs(
                 $ep,
                 isset($arg['args']) ? $arg['args'] : [],
@@ -385,7 +359,7 @@ class WP_API_SwaggerUI
                     'consumes' => $consumes,
                     'produces' => $produces,
                     'parameters' => $parameters,
-                    'security' => $this->getSecurity($methodEndpoint, $arg),
+                    'security' => isset($arg['security']) ? $arg['security'] : $this->getSecurity(),
                     'responses' => $responses
                 );
 
@@ -823,15 +797,11 @@ class WP_API_SwaggerUI
         return $parameters;
     }
 
-    public function getSecurity($methodEndpoint = '', $args = [])
+    public function getSecurity()
     {
         $raw = $this->securityDefinitions();
         if (!is_array($raw)) {
             $raw = [];
-        }
-        $raw = apply_filters('swagger_method_raw_security', $raw, $args);
-        if ($methodEndpoint) {
-            $raw = apply_filters('swagger_method_raw_security_' . $methodEndpoint, $raw, $args);
         }
 
         $securities = [];
@@ -878,4 +848,9 @@ class WP_API_SwaggerUI
 
 }
 
-new WP_API_SwaggerUI();
+$swagerui = new WP_API_SwaggerUI();
+
+register_activation_hook(__FILE__, [$swagerui, 'flushActivate']);
+register_deactivation_hook(__FILE__, [$swagerui, 'flushDeactivate']);
+add_action('init', [$swagerui, 'routes']);
+add_action('wp', [$swagerui, 'swagger']);
